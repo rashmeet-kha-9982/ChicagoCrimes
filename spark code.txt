@@ -1,0 +1,39 @@
+import org.apache.commons.io.IOUtils
+import java.net.URL
+import java.nio.charset.Charset
+
+// Zeppelin creates and injects sc (SparkContext) and sqlContext (HiveContext or SqlContext)
+// So you don't need create them manually
+
+// load crime data
+val crimeData = sc.parallelize(
+    IOUtils.toString(
+        new URL("file:///C:\\Users\\rashmeet\\crimeTest4.csv"),
+        Charset.forName("utf8")).split("\n"))
+
+case class Crime(id: Integer, caseNumber: String, date:String, block:String, iucr: String, primaryType: String, description: String, arrest:Boolean, domestic:Boolean, beat:Integer, district:Float, ward:Float, communityArea:String, fbiCode:String, xCoordinate: Float, yCoordinate: Float, year: Integer, updatedOn:String, latitude : Float, longitude: Float)
+
+val crime = crimeData.map(s => s.split(",")).filter(s => s(0) != "ID").map(
+    s => Crime(s(0).toInt, 
+            s(1),
+            s(2),
+            s(3),
+            s(4),
+            s(5),
+            s(6), 
+            s(7).toBoolean,
+            s(8).toBoolean,
+            s(9).toInt,
+            s(10).toFloat,
+            s(11).toFloat,
+            s(12),
+            s(13),
+            s(14).toFloat,
+            s(15).toFloat,
+            s(16).toInt,
+            s(17),
+            s(18).toFloat,
+            s(19).toFloat
+        )
+).toDF()
+crime.registerTempTable("crime")
