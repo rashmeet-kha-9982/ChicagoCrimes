@@ -1,0 +1,61 @@
+%spark
+import scala.util.parsing.json.JSONObject
+import org.apache.spark.sql._
+import org.json4s._
+import org.json4s.JsonDSL._
+import org.json4s.jackson.JsonMethods._
+val sqlContext = new org.apache.spark.sql.hive.HiveContext(sc)
+val hadoopConf = sc.hadoopConfiguration
+hadoopConf.set("mapreduce.input.fileinputformat.input.dir.recursive", "true")
+val COSMODE_Wind = sqlContext.sql("SELECT latitude, longitude FROM crime")
+case class Loc(lat: Float, lon: Float)
+val dataPoints = COSMODE_Wind.map{s => Loc( s.getFloat(0), s.getFloat(1))}
+val dataPointsJson = dataPoints.toJSON.take(100)
+z.angularBind("locations", dataPointsJson)
+
+%angular
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.5/leaflet.css" />
+<div id="map" style="height: 800px; width: 100%"></div>
+<script type="text/javascript">
+function initMap() {
+    var map = L.map('map').setView([41.8781, -87.6298], 10);
+
+    L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
+        maxZoom: 16,
+        minZoom: 3
+    }).addTo(map);
+
+    var geoMarkers = L.layerGroup().addTo(map);
+    var el = angular.element($('#map').parent('.ng-scope'));
+    angular.element(el).ready(function() {
+        window.locationWatcher = el.scope().compiledScope.$watch('locations', function(newValue, oldValue) {
+            angular.forEach(newValue, function(wind) {
+            temp=angular.fromJson(wind);
+             if(temp['lat']!=0.0){
+                var marker = L.marker([temp['lat'], temp['lon']]).bindPopup(temp['lon']).addTo(geoMarkers);
+            }
+            });
+        })
+    });
+}
+
+if (window.locationWatcher) {
+    // clear existing watcher otherwise we'll have duplicates
+    window.locationWatcher();
+}
+
+// ensure we only load the script once, seems to cause issues otherwise
+if (window.L) {
+    initMap();
+} else {
+    console.log('Loading Leaflet library');
+    var sc = document.createElement('script');
+    sc.type = 'text/javascript';
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.5/leaflet.js';
+    sc.onload = initMap;
+    sc.onerror = function(err) { alert(err); }
+    document.getElementsByTagName('head')[0].appendChild(sc);
+}
+</script>
